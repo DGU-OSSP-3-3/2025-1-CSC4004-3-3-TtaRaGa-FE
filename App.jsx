@@ -3,6 +3,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import CourseRecommend from './screens/courseRecommend';
 import CourseDetail from './screens/courseDetail';
+import bikeMarker from './screens/bikeMarker';
 
 const Stack = createNativeStackNavigator();
 
@@ -10,7 +11,7 @@ export default function App() {
   return (
     <NavigationContainer>
       <Stack.Navigator
-        initialRouteName="courseDetail"
+        initialRouteName="bikeMarker"
         screenOptions={{
           headerStyle: {
             backgroundColor: '#fff',
@@ -33,6 +34,11 @@ export default function App() {
           name="courseDetail"
           component={CourseDetail}
           options={{ title: '코스 상세' }} // 헤더 타이틀 설정
+        />
+        <Stack.Screen
+          name="bikeMarker"
+          component={bikeMarker}
+          options={{ title: '자전거 대여소' }} // 헤더 타이틀 설정
         />
       </Stack.Navigator>
     </NavigationContainer>
