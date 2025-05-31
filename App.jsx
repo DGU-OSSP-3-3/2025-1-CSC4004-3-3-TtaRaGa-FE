@@ -3,6 +3,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import CourseRecommend from './screens/courseRecommend';
 import CourseDetail from './screens/courseDetail';
+import CourseStart from './screens/courseStart';
 
 const Stack = createNativeStackNavigator();
 
@@ -11,7 +12,7 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <NavigationContainer>
         <Stack.Navigator
-          initialRouteName="courseDetail"
+          initialRouteName="courseStart"
           screenOptions={{
             headerStyle: {
               backgroundColor: '#fff',
@@ -34,6 +35,11 @@ export default function App() {
             name="courseDetail"
             component={CourseDetail}
             options={{ title: '코스 상세' }} // 헤더 타이틀 설정
+          />
+          <Stack.Screen
+            name="courseStart"
+            component={CourseStart}
+            options={{ title: '코스 시작' }} // 헤더 타이틀 설정
           />
         </Stack.Navigator>
       </NavigationContainer>
