@@ -1,7 +1,12 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { useState } from 'react';
+import { postFilterTime } from '../api/postFilterTime';
+import { setSavedRoute } from '../api/routeStore';
 
+
+// TODO : 시간 선택 버튼 마구 못누르게 응답 올때까지 대기
+// TODO : 반환 점 기반 주변 명소 데이터 가져오기
 
 
 const courses = [
@@ -27,7 +32,31 @@ const courses = [
 
 const CourseRecommend = ({ navigation }) => {
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [routeData, setRouteData] = useState(null);
+
   const filters = ['30분', '1시간', '2시간'];
+  const timeMap = {
+    '30분': 30,
+    '1시간': 60,
+    '2시간': 120,
+  };
+
+  const handleFilterSelect = async (idx) => {
+    setSelectedIndex(idx);
+    const label = filters[idx];
+    const targetTime = timeMap[label]; // 숫자값으로 변환
+
+    const lat = 37.51000977;
+    const lon = 126.88204956;
+    try {
+      const data = await postFilterTime(lat, lon, targetTime);
+      console.log('경로 데이터:', data);
+      setSavedRoute(data); // 여기 저장
+
+    } catch (err) {
+      console.error('전송 실패:', err);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -46,7 +75,7 @@ const CourseRecommend = ({ navigation }) => {
               styles.filterBtn,
               selectedIndex === idx && styles.filterBtnSelected,
             ]}
-            onPress={() => setSelectedIndex(idx)}
+            onPress={() => handleFilterSelect(idx)}
           >
             <Text
               style={[
@@ -64,7 +93,11 @@ const CourseRecommend = ({ navigation }) => {
       <View style={styles.scroll}>
         {/* 최적 라이딩 코스 */}
         <Text style={styles.sectionTitle}>✨ 최적 라이딩 코스</Text>
-        <View style={styles.card}>
+        <TouchableOpacity style={styles.card} 
+          onPress={() =>
+            navigation.navigate('courseDetail')
+          }
+        >
           <Image
             source={{
               uri: 'https://www.seouldanurim.net/comm/getImage?srvcId=MEDIA&parentSn=43723&fileTy=MEDIA&fileNo=1&thumbTy=S',
@@ -75,7 +108,7 @@ const CourseRecommend = ({ navigation }) => {
             <Text style={styles.cardTitle}>1시간 힐링 라이딩 코스</Text>
             <Text style={styles.cardDesc}>하천 따라 여유롭게 달릴 수 있는 힐링용 루트입니다.</Text>
           </View>
-        </View>
+        </TouchableOpacity>
 
         {/* 서울 동행 코스 */}
         <Text style={styles.sectionTitle}>🏃 서울 동행 코스</Text>
@@ -167,7 +200,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 50, // 화면 하단에서 간격
     alignSelf: 'center',
-    backgroundColor: '#328E6E',
+    backgroundColor: '#4CAF50',
     paddingVertical: 12,
     paddingHorizontal: 28,
     borderRadius: 30,

@@ -12,7 +12,7 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <NavigationContainer>
         <Stack.Navigator
-          initialRouteName="courseStart"
+          initialRouteName="courseRecommend"
           screenOptions={{
             headerStyle: {
               backgroundColor: '#fff',

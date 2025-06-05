@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text, PermissionsAndroid, Platform } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Text, PermissionsAndroid, Platform, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   NaverMapView,
@@ -10,6 +10,9 @@ import { testCourse } from '../api/testCourse';
 import useStopwatch from '../screens/components/stopWatch.jsx';
 import Geolocation from '@react-native-community/geolocation';
 import CourseStartBottomCard from '../screens/components/courseStartBottomCard';
+import { getSavedRoute } from '../api/routeStore';
+import EndRideDialog from '../screens/components/endRideDialog.jsx';
+
 
 const MountainMapScreen = () => {
   const mapRef = useRef(null);
@@ -19,7 +22,11 @@ const MountainMapScreen = () => {
   const [currentLocation, setCurrentLocation] = useState(null);
   const [currentZoom, setCurrentZoom] = useState(15);
   const zoomRef = useRef(15); // 현재 줌 레벨 유지용
-  const trackingRef = useRef(false);
+  const trackingRef = useRef(true);
+  const [isReady, setIsReady] = useState(false); // ✅ 변경
+  const [modalVisible, setModalVisible] = useState(false);
+
+
 
 
   const requestLocationPermission = async () => {
@@ -70,10 +77,10 @@ const MountainMapScreen = () => {
       console.warn('❌ 현재 위치 이동 실패:', e);
     }
   };
-
   useEffect(() => {
-    start();
-  
+
+    if(isReady) start();
+    moveToCurrentLocation(); // 컴포넌트 마운트 시 현재 위치로 이동
     let intervalId;
 
   const startInterval = async () => {
@@ -85,44 +92,70 @@ const MountainMapScreen = () => {
         const loc = await getCurrentLocationAsync();
         setCurrentLocation(loc);
 
+        
         if (trackingRef.current) {
-          mapRef.current?.animateCameraTo({
-            latitude: loc.latitude,
-            longitude: loc.longitude,
-            zoom: zoomRef.current,
-          });
+          if (!isReady) {
+            mapRef.current?.animateCameraTo({
+              latitude: loc.latitude,
+              longitude: loc.longitude,
+              zoom: zoomRef.current,
+              duration: 0,
+            });
+            setIsReady(true); // ✅ 상태 변경 → 다시 렌더링됨
+          }
+          else {
+            mapRef.current?.animateCameraTo({
+              latitude: loc.latitude,
+              longitude: loc.longitude,
+              zoom: zoomRef.current,
+              duration : 0,
+            });
+          }
         }
       } catch (e) {
         console.warn('❌ 위치 업데이트 실패:', e);
       }
     }, 3000);
+
   };
   
     startInterval();
   
     const loadRoute = async () => {
-      try {
-        const result = testCourse;
-        const coords = result.coordinates.map(([lng, lat]) => ({
-          latitude: lat,
-          longitude: lng,
-        }));
-        setGeoCoords(coords);
-      } catch (err) {
-        console.error('❌ 경로 로딩 오류:', err);
-      }
+      const data = getSavedRoute();
+      
+        if (data) {
+          const parsed = typeof data.geoJson === 'string'
+            ? JSON.parse(data.geoJson)
+              : data.geoJson;
+        
+            const coords = parsed.coordinates.map(([lng, lat]) => ({
+                latitude: lat,
+                longitude: lng,
+                            }));
+          
+              setGeoCoords(coords);
+            }
+
     };
   
     loadRoute();
+
     return () => {
       if (intervalId) clearInterval(intervalId);
     };
-  }, []);
+  }, [isReady]);
   
-
+  
   return (
-    <SafeAreaView edges={['top']} style={styles.container}>
+    <SafeAreaView edges={['top, bottom']} style={styles.container}>
+       {!isReady ? (
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>위치 정보 받아 오는 중...</Text>
+        </View>
+      ) :(
       <View style={styles.mapContainer}>
+     
         <NaverMapView
           ref={mapRef}
           style={{ flex: 1 }}
@@ -166,6 +199,7 @@ const MountainMapScreen = () => {
             />
           )}
         </NaverMapView>
+      
 
         {/* 📍 위치 이동 버튼 */}
         <TouchableOpacity style={styles.locationBtn} onPress={moveToCurrentLocation}>
@@ -180,15 +214,25 @@ const MountainMapScreen = () => {
             estTime={'54m'}
             calories={85}
             onEndRide={() => {
-              pause();
-              console.log('🚴 라이딩 종료');
+              setModalVisible(true)
             }}
           />
         </View>
+        <EndRideDialog
+          visible={modalVisible}
+          onConfirm={() => {
+            pause();
+            setModalVisible(false);
+          }}
+          onCancel={() => setModalVisible(false)}
+        />
       </View>
+      )}
     </SafeAreaView>
   );
 };
+
+
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
@@ -212,6 +256,19 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 4,
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+  },
+  loadingText: {
+    fontSize: 18,
+    color: '#666',
+    textAlign: 'center',
+    fontWeight: '600',
+  },
+  
 });
 
 export default MountainMapScreen;

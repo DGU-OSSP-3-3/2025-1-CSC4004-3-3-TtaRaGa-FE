@@ -1,9 +1,11 @@
 import React, { useEffect,useState, useRef, useMemo } from 'react';
-import { View, Text, StyleSheet, Button } from 'react-native';
+import { View, Text, StyleSheet, Button, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { NaverMapView, NaverMapPolylineOverlay } from '@mj-studio/react-native-naver-map';
+import { NaverMapView, NaverMapPathOverlay } from '@mj-studio/react-native-naver-map';
 import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
 import { fetchGeoJson,fetchBestRoute } from '../api/geojson';
+import { getSavedRoute } from '../api/routeStore';
+
 
 
 function getCameraWithZoomAndOffset(coords) {
@@ -47,9 +49,9 @@ function getCameraWithZoomAndOffset(coords) {
 }
 // 사용 예시
 
-const MountainMapScreen = () => {
+const CourseDetail = ({ navigation }) => {
   const bottomSheetRef = useRef(null);
-  const snapPoints = useMemo(() => ['5%', '50%'], []); // 필요한 만큼
+  const snapPoints = useMemo(() => ['15%', '50%'], []); // 필요한 만큼
   const [geoCoords, setGeoCoords] = useState([]);
 
   const handleClick = async () => {
@@ -74,21 +76,35 @@ const MountainMapScreen = () => {
 
 
   useEffect(() => {
-    fetchBestRoute(37.5665,126.978,10)
-    .then(data => {
-      // GeoJSON 문자열 파싱
-      const parsed = JSON.parse(data.geoJson);
+  //   fetchBestRoute(37.5665,126.978,10)
+  //   .then(data => {
+  //     // GeoJSON 문자열 파싱
+  //     const parsed = JSON.parse(data.geoJson);
   
-      // 안에 properties.the_geom.coordinates가 실제 좌표 배열임
-      const coords = parsed.properties.the_geom.coordinates.map(
-        ([lng, lat]) => ({ latitude: lat, longitude: lng })
-      );
+  //     // 안에 properties.the_geom.coordinates가 실제 좌표 배열임
+  //     const coords = parsed.properties.the_geom.coordinates.map(
+  //       ([lng, lat]) => ({ latitude: lat, longitude: lng })
+  //     );
   
-      setGeoCoords(coords);
-  })
-  .catch(err => {
-    console.error('GeoJSON fetch error:', err);
-  });
+  //     setGeoCoords(coords);
+  // })
+  // .catch(err => {
+  //   console.error('GeoJSON fetch error:', err);
+  // });
+      const data = getSavedRoute();
+
+      if (data) {
+        const parsed = typeof data.geoJson === 'string'
+          ? JSON.parse(data.geoJson)
+          : data.geoJson;
+    
+        const coords = parsed.coordinates.map(([lng, lat]) => ({
+          latitude: lat,
+          longitude: lng,
+        }));
+    
+        setGeoCoords(coords);
+      }
   }, []);
   const INITIAL_CAMERA = getCameraWithZoomAndOffset(geoCoords);
 
@@ -110,13 +126,16 @@ const MountainMapScreen = () => {
           outlineColor="#000000"
         /> */}
         {geoCoords.length >= 2 && (
-          <NaverMapPolylineOverlay
-          coords={geoCoords}
-          width={10}
-          color="#FF0000"
-          outlineWidth={2}
-          outlineColor="#000000"
-        />
+          <NaverMapPathOverlay
+            coords={geoCoords}
+            width={8}
+            color="#68AE6E"
+            outlineWidth={2}
+            outlineColor="#ffffff"
+            zIndex={1000}
+            patternImage={require('../assets/dot.png')}
+            patternInterval={40}
+          />
         )}
         </NaverMapView>
        
@@ -129,7 +148,29 @@ const MountainMapScreen = () => {
           <BottomSheetView style={styles.sheetContent}>
             <Text style={styles.text}>반포한강공원</Text>
             <View style={{ height: 2, backgroundColor: '#F7F5F5', marginTop: 27, width: '100%' }} />
-            <View style={{ marginTop: 20, width: '100%' }}><Button title="경로 가져오기" onPress={handleClick} /></View>
+            <View style={styles.infoGroup}>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>예상 소요시간</Text>
+                <Text style={styles.infoValue}>1시간 43분</Text>
+              </View>
+
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>평균 오르막 경사도</Text>
+                <Text style={styles.infoValue}>2.3%</Text>
+              </View>
+
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>최대 오르막 경사도</Text>
+                <Text style={styles.infoValue}>2.3%</Text>
+              </View>
+            </View>
+
+          <TouchableOpacity style={styles.startButton}
+          onPress={() =>
+            navigation.navigate('courseStart')
+          }>
+            <Text style={styles.startButtonText}>시작</Text>
+          </TouchableOpacity> 
           </BottomSheetView>
         </BottomSheet>
 
@@ -142,7 +183,7 @@ const styles = StyleSheet.create({
   sheetContent: {
     flex: 1,
     alignItems: 'center',
-    padding: 16,
+    padding: 20,
     backgroundColor: 'white',
   },
   text: {
@@ -150,6 +191,44 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
   },
+  infoGroup: {
+    paddingVertical: 20,
+    flex: 1, // ⚠️ 여기가 핵심: 세로 공간을 차지하게
+    justifyContent: 'space-evenly', // 균등하게 채우기
+  },
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    width: '100%',
+  },
+  
+  infoLabel: {
+    fontSize: 16,
+    color: '#444',
+  },
+  
+  infoValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#68AE6E', // 민트톤 강조
+  },
+  
+  startButton: {
+    width: '100%',
+    marginBottom: 60,
+    backgroundColor: '#4CAF50',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  
+  startButtonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
 });
 
-export default MountainMapScreen;
+export default CourseDetail;
