@@ -6,6 +6,7 @@ import Geolocation from '@react-native-community/geolocation';
 import { request, PERMISSIONS } from 'react-native-permissions';
 import { REACT_APP_DB_IP } from '@env';
 import MarkerSvg from '../assets/marker_svg.svg'; // SVG 마커 아이콘
+import RefreshSvg from '../assets/refresh.svg'; // 새로고침 아이콘
 import _ from 'lodash';
 
 // 로컬 JSON 데이터 (FALLBACK_DATA)
@@ -140,7 +141,7 @@ function BikeDB() {
   const mapRef = useRef(null);
   const isInitialized = useRef(false);
 
-  // 위치 권한 요청 및 현재 위치 가져오기
+  // 위치 권한 요청 및 현재 위치 가져오기, 직접 apk 설치후 확인 사안
   useEffect(() => {
     async function initializeLocation() {
       try {
@@ -156,19 +157,19 @@ function BikeDB() {
             },
             (err) => {
               console.error('Geolocation error:', err);
-              setError('Failed to get current location, using default location');
+              setCamera(DEFAULT_CAMERA); 
               setLoading(false);
             },
             { enableHighAccuracy: true, timeout: 10000, maximumAge: 1000 }
           );
         } else {
           console.warn('Location permission denied');
-          setError('Location permission denied, using default location');
+          setCamera(DEFAULT_CAMERA);
           setLoading(false);
         }
       } catch (err) {
         console.error('Permission error:', err);
-        setError('Failed to initialize location');
+        setCamera(DEFAULT_CAMERA);
         setLoading(false);
       }
     }
@@ -197,14 +198,10 @@ function BikeDB() {
       Math.abs(maxLat - viewportBounds.maxLat) < 0.001 &&
       Math.abs(minLng - viewportBounds.minLng) < 0.001 &&
       Math.abs(maxLng - viewportBounds.maxLng) < 0.001
-    ) {
-      console.log('Camera change too small, skipping update');
-      return;
-    }
+    ) return;
 
     setViewportBounds({ minLat, maxLat, minLng, maxLng });
     setIsRegionReady(true);
-    console.log('카메라 변경:', { minLat, maxLat, minLng, maxLng });
   };
 
   // 새로고침 핸들러
@@ -359,7 +356,7 @@ function BikeDB() {
           <Text style={styles.text}>Visible stations: {visibleStationsCount}</Text>
         </View>
         <TouchableOpacity style={styles.refreshButton} onPress={handleRefresh}>
-          <Image source={require('../assets/refresh.png')} style={{ width: 24, height: 24 }} />
+          <RefreshSvg width="24px" height="24px" />  
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -390,12 +387,13 @@ const styles = StyleSheet.create({
   refreshButton: {
     position: 'absolute',
     bottom: 50,
-    right: 20,
-    backgroundColor: 'rgba(255,255,255,0.8)',
-    paddingVertical: 11,
-    paddingHorizontal: 11,
+    right: 15,
+    backgroundColor: 'rgb(255, 255, 255)',
+    paddingVertical: 10.5,
+    paddingHorizontal: 10.5,
     borderRadius: 8,
     alignItems: 'center',
+    elevation: 1,
   },
   modalBackground: {
     flex: 1,
