@@ -1,163 +1,242 @@
-import React, { useEffect,useState, useRef, useMemo } from 'react';
-import { View, Text, StyleSheet, Button } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, StyleSheet, TouchableOpacity, Text, PermissionsAndroid, Platform, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { NaverMapView, NaverMapPolylineOverlay } from '@mj-studio/react-native-naver-map';
-import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
-import { fetchGeoJson,fetchBestRoute } from '../api/geojson';
-import {testCourse} from '../api/testCourse';
+import {
+  NaverMapView,
+  NaverMapPathOverlay,
+  NaverMapMarkerOverlay
+} from '@mj-studio/react-native-naver-map';
+import { testCourse } from '../api/testCourse';
+import useStopwatch from '../screens/components/stopWatch.jsx';
+import Geolocation from '@react-native-community/geolocation';
 import CourseStartBottomCard from '../screens/components/courseStartBottomCard';
+import { getSavedRoute } from '../api/routeStore';
+import EndRideDialog from '../screens/components/endRideDialog.jsx';
 
-
-function getCameraWithZoomAndOffset(coords) {
-  if (!coords || coords.length < 2) return null;
-
-  const lats = coords.map(c => c.latitude);
-  const lngs = coords.map(c => c.longitude);
-
-  const minLat = Math.min(...lats);
-  const maxLat = Math.max(...lats);
-  const minLng = Math.min(...lngs);
-  const maxLng = Math.max(...lngs);
-
-  const centerLat = (minLat + maxLat) / 2;
-  const centerLng = (minLng + maxLng) / 2;
-
-  // 위도/경도 거리 범위 (대략적 거리 추정)
-  const latDiffKm = (maxLat - minLat) * 111;
-  const lngDiffKm = (maxLng - minLng) * 88; // 서울 기준
-  const diagonalKm = Math.sqrt(latDiffKm ** 2 + lngDiffKm ** 2);
-
-  // 줌 추정 (대략적인 범위 기반)
-  let zoom;
-  let offsetPerZoom;
-
-  if (diagonalKm < 0.5) zoom = 15, offsetPerZoom = 0.0050;
-  else if (diagonalKm < 1.5) zoom = 14, offsetPerZoom = 0.0030;
-  else if (diagonalKm < 3) zoom = 13, offsetPerZoom = 0.0040;
-  else if (diagonalKm < 6) zoom = 12, offsetPerZoom = 0.0050;
-  // else if (diagonalKm < 10) zoom = 12;
-  else zoom = 11, offsetPerZoom = 0.0090;
-
-  // 줌에 비례해 위도 중심 보정 (줌 16 → 0, 줌 11 → 더 많이 내림)
-  let latOffset = offsetPerZoom * (16 - zoom);
-
-  return {
-    latitude: centerLat - latOffset,
-    longitude: centerLng,
-    zoom,
-  };
-}
-// 사용 예시
 
 const MountainMapScreen = () => {
-  const bottomSheetRef = useRef(null);
-  const snapPoints = useMemo(() => ['5%', '50%'], []); // 필요한 만큼
-  const [geoCoords, setGeoCoords] = useState([]);
+  const mapRef = useRef(null);
+  const { formattedTime, start, pause } = useStopwatch();
 
-  const handleClick = async () => {
-    try {
-      // 통신용 (주석해제해서 사용)
-      // const result = await fetchBestRoute(37.5665, 126.978, 10);
-      // console.log('✅ Best route:', result);
-  
-      // 테스트용 (주석해제해서 사용)
-      const result = testCourse;
-      
-      // GeoJSON 문자열 파싱
-      const parsed = JSON.parse(result.geoJson);
-  
-      // 안에 properties.the_geom.coordinates가 실제 좌표 배열임
-      const coords = parsed.properties.the_geom.coordinates.map(
-        ([lng, lat]) => ({ latitude: lat, longitude: lng })
+  const [geoCoords, setGeoCoords] = useState([]);
+  const [currentLocation, setCurrentLocation] = useState(null);
+  const [currentZoom, setCurrentZoom] = useState(15);
+  const zoomRef = useRef(15); // 현재 줌 레벨 유지용
+  const trackingRef = useRef(true);
+  const [isReady, setIsReady] = useState(false); // ✅ 변경
+  const [modalVisible, setModalVisible] = useState(false);
+
+
+
+
+  const requestLocationPermission = async () => {
+    if (Platform.OS === 'android') {
+      const granted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+        {
+          title: '위치 권한 요청',
+          message: '현재 위치를 사용하기 위해 권한이 필요합니다.',
+          buttonNeutral: '나중에',
+          buttonNegative: '거부',
+          buttonPositive: '허용',
+        }
       );
-  
-      setGeoCoords(coords);
-    } catch (err) {
-      console.error('❌ Error fetching route:', err);
+      return granted === PermissionsAndroid.RESULTS.GRANTED;
     }
+    return true;
   };
 
-
-
-  useEffect(() => {
-    fetchBestRoute(37.5665,126.978,10)
-    .then(data => {
-      // GeoJSON 문자열 파싱
-      const parsed = JSON.parse(data.geoJson);
-  
-      // 안에 properties.the_geom.coordinates가 실제 좌표 배열임
-      const coords = parsed.properties.the_geom.coordinates.map(
-        ([lng, lat]) => ({ latitude: lat, longitude: lng })
+  const getCurrentLocationAsync = () => {
+    return new Promise((resolve, reject) => {
+      Geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          resolve({ latitude, longitude });
+        },
+        (error) => {
+          reject(error);
+        },
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
       );
+    });
+  };
+
+  const moveToCurrentLocation = async () => {
+    try {
+      const location = await getCurrentLocationAsync();
+      setCurrentLocation(location);
+      console.log('moveto함수 실행');
+
+      mapRef.current?.animateCameraTo({
+        latitude: location.latitude,
+        longitude: location.longitude,
+        zoom: zoomRef.current,
+      });
+      trackingRef.current = true; // 위치 이동 시 트래킹 활성화
+    } catch (e) {
+      console.warn('❌ 현재 위치 이동 실패:', e);
+    }
+  };
+  useEffect(() => {
+
+    if(isReady) start();
+    moveToCurrentLocation(); // 컴포넌트 마운트 시 현재 위치로 이동
+    let intervalId;
+
+  const startInterval = async () => {
+    const permissionGranted = await requestLocationPermission();
+    if (!permissionGranted) return;
+
+    intervalId = setInterval(async () => {
+      try {
+        const loc = await getCurrentLocationAsync();
+        setCurrentLocation(loc);
+
+        
+        if (trackingRef.current) {
+          if (!isReady) {
+            mapRef.current?.animateCameraTo({
+              latitude: loc.latitude,
+              longitude: loc.longitude,
+              zoom: zoomRef.current,
+              duration: 0,
+            });
+            setIsReady(true); // ✅ 상태 변경 → 다시 렌더링됨
+          }
+          else {
+            mapRef.current?.animateCameraTo({
+              latitude: loc.latitude,
+              longitude: loc.longitude,
+              zoom: zoomRef.current,
+              duration : 0,
+            });
+          }
+        }
+      } catch (e) {
+        console.warn('❌ 위치 업데이트 실패:', e);
+      }
+    }, 3000);
+
+  };
   
-      setGeoCoords(coords);
-  })
-  .catch(err => {
-    console.error('GeoJSON fetch error:', err);
-  });
-  }, []);
-  const INITIAL_CAMERA = getCameraWithZoomAndOffset(geoCoords);
+    startInterval();
+  
+    const loadRoute = async () => {
+      const data = getSavedRoute();
+      
+        if (data) {
+          const parsed = typeof data.geoJson === 'string'
+            ? JSON.parse(data.geoJson)
+              : data.geoJson;
+        
+            const coords = parsed.coordinates.map(([lng, lat]) => ({
+                latitude: lat,
+                longitude: lng,
+                            }));
+          
+              setGeoCoords(coords);
+            }
+
+    };
+  
+    loadRoute();
+
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [isReady]);
+  
   
   return (
-    <SafeAreaView edges={['top']} style={{ flex: 1 }}>
-      
-      <View style={{ flex: 1 }} >
-        <NaverMapView style={{ flex: 1 }} initialCamera={INITIAL_CAMERA}>
-{/*     
-        <NaverMapPolylineOverlay
-          coords={[
-            { latitude: 37.5665, longitude: 126.978 },
-            { latitude: 37.5823, longitude: 126.9673 }
-          ]}
+    <SafeAreaView edges={['top, bottom']} style={styles.container}>
+       {!isReady ? (
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>위치 정보 받아 오는 중...</Text>
+        </View>
+      ) :(
+      <View style={styles.mapContainer}>
+     
+        <NaverMapView
+          ref={mapRef}
+          style={{ flex: 1 }}
+          mapType="Basic"
+          isShowLocationButton={false}
+          islogoVisible={false}
+          onCameraChanged={(e) => {
+            console.log('🔍 카메라 변경 이벤트:', e);
+            const reasonCode = e.reason;
           
-          width={10}
-          color="#FF0000"
-          outlineWidth={2}
-          outlineColor="#000000"
-        /> */}
-        {geoCoords.length >= 2 && (
-          <NaverMapPolylineOverlay
-          coords={geoCoords}
-          width={10}
-          color="#FF0000"
-          outlineWidth={2}
-          outlineColor="#000000"
-        />
-        )}
-        
+            if (reasonCode === 'Gesture') {
+              trackingRef.current = false;
+            }
+          }}
+          onCameraIdle={(e) => {
+            const zoom = e?.zoom;
+            if (typeof zoom === 'number') {
+              setCurrentZoom(zoom);
+              zoomRef.current = zoom;
+            }
+          }}
+        >
+          {geoCoords.length >= 2 && (
+            <NaverMapPathOverlay
+              coords={geoCoords}
+              width={8}
+              color="#68AE6E"
+              outlineWidth={2}
+              outlineColor="#ffffff"
+              zIndex={1000}
+              patternImage={require('../assets/dot.png')}
+              patternInterval={40}
+            />
+          )}
+          {currentLocation && (
+            <NaverMapMarkerOverlay
+              latitude={currentLocation.latitude}
+              longitude={currentLocation.longitude}
+              caption="현위치"
+              captionAlign="Top"
+            />
+          )}
         </NaverMapView>
-        
+      
+
+        {/* 📍 위치 이동 버튼 */}
+        <TouchableOpacity style={styles.locationBtn} onPress={moveToCurrentLocation}>
+          <Text style={{ fontSize: 20 }}>📍</Text>
+        </TouchableOpacity>
+
+        {/* 하단 정보 카드 */}
         <View style={styles.cardWrapper}>
           <CourseStartBottomCard
-            elapsedTime={'00:03:24'}
+            elapsedTime={formattedTime}
             distance={2.4}
             estTime={'54m'}
             calories={85}
             onEndRide={() => {
-              console.log('라이딩 종료');
+              setModalVisible(true)
             }}
           />
-  </View>
-       
-        
-
+        </View>
+        <EndRideDialog
+          visible={modalVisible}
+          onConfirm={() => {
+            pause();
+            setModalVisible(false);
+          }}
+          onCancel={() => setModalVisible(false)}
+        />
       </View>
+      )}
     </SafeAreaView>
   );
 };
 
+
+
 const styles = StyleSheet.create({
-  sheetContent: {
-    flex: 1,
-    alignItems: 'center',
-    padding: 16,
-    backgroundColor: 'white',
-  },
-  text: {
-    fontSize: 24,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
+  container: { flex: 1 },
+  mapContainer: { flex: 1 },
   cardWrapper: {
     position: 'absolute',
     bottom: 16,
@@ -165,6 +244,31 @@ const styles = StyleSheet.create({
     right: 0,
     paddingHorizontal: 16,
   },
+  locationBtn: {
+    position: 'absolute',
+    left: 16,
+    top: '45%',
+    backgroundColor: '#fff',
+    borderRadius: 24,
+    padding: 12,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+  },
+  loadingText: {
+    fontSize: 18,
+    color: '#666',
+    textAlign: 'center',
+    fontWeight: '600',
+  },
+  
 });
 
 export default MountainMapScreen;
