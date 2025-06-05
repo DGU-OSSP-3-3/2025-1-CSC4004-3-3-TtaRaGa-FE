@@ -4,6 +4,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { NaverMapView, NaverMapPolylineOverlay } from '@mj-studio/react-native-naver-map';
 import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
 import { fetchGeoJson,fetchBestRoute } from '../api/geojson';
+import {testCourse} from '../api/testCourse';
+import CourseStartBottomCard from '../screens/components/courseStartBottomCard';
 
 
 function getCameraWithZoomAndOffset(coords) {
@@ -54,9 +56,13 @@ const MountainMapScreen = () => {
 
   const handleClick = async () => {
     try {
-      const result = await fetchBestRoute(37.5665, 126.978, 10);
-      console.log('✅ Best route:', result);
+      // 통신용 (주석해제해서 사용)
+      // const result = await fetchBestRoute(37.5665, 126.978, 10);
+      // console.log('✅ Best route:', result);
   
+      // 테스트용 (주석해제해서 사용)
+      const result = testCourse;
+      
       // GeoJSON 문자열 파싱
       const parsed = JSON.parse(result.geoJson);
   
@@ -91,13 +97,13 @@ const MountainMapScreen = () => {
   });
   }, []);
   const INITIAL_CAMERA = getCameraWithZoomAndOffset(geoCoords);
-
+  
   return (
     <SafeAreaView edges={['top']} style={{ flex: 1 }}>
       
       <View style={{ flex: 1 }} >
         <NaverMapView style={{ flex: 1 }} initialCamera={INITIAL_CAMERA}>
-{/* 
+{/*     
         <NaverMapPolylineOverlay
           coords={[
             { latitude: 37.5665, longitude: 126.978 },
@@ -118,20 +124,22 @@ const MountainMapScreen = () => {
           outlineColor="#000000"
         />
         )}
+        
         </NaverMapView>
+        
+        <View style={styles.cardWrapper}>
+          <CourseStartBottomCard
+            elapsedTime={'00:03:24'}
+            distance={2.4}
+            estTime={'54m'}
+            calories={85}
+            onEndRide={() => {
+              console.log('라이딩 종료');
+            }}
+          />
+  </View>
        
-        <BottomSheet
-          ref={bottomSheetRef}
-          index={1} // 무조건 열림
-          snapPoints={snapPoints}
-          enablePanDownToClose={false} // 닫기 비활성화
-        >
-          <BottomSheetView style={styles.sheetContent}>
-            <Text style={styles.text}>반포한강공원</Text>
-            <View style={{ height: 2, backgroundColor: '#F7F5F5', marginTop: 27, width: '100%' }} />
-            <View style={{ marginTop: 20, width: '100%' }}><Button title="경로 가져오기" onPress={handleClick} /></View>
-          </BottomSheetView>
-        </BottomSheet>
+        
 
       </View>
     </SafeAreaView>
@@ -149,6 +157,13 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '600',
     textAlign: 'center',
+  },
+  cardWrapper: {
+    position: 'absolute',
+    bottom: 16,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 16,
   },
 });
 

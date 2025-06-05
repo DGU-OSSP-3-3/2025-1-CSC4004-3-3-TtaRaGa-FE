@@ -25,7 +25,7 @@ const courses = [
   },
 ];
 
-export default function App() {
+const CourseRecommend = ({ navigation }) => {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const filters = ['30분', '1시간', '2시간'];
 
@@ -64,7 +64,7 @@ export default function App() {
       {/* 리스트 */}
       <ScrollView contentContainerStyle={styles.scroll}>
         {courses.map(course => (
-          <View key={course.id} style={styles.card}>
+          <View key={course.id} style={styles.card} onClick={() => console.log(`Selected course: ${course.title}`)}>
             <Image source={course.image} style={styles.image} />
             <View style={styles.textBox}>
               <Text style={styles.cardTitle}>{course.title}</Text>
@@ -76,6 +76,8 @@ export default function App() {
     </View>
   );
 }
+export default CourseRecommend;
+
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff', paddingHorizontal: 16},
@@ -99,6 +101,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F9FFFC',
     borderWidth: 2,
   },
+  
   filterTextSelected: {
     color: '#328E6E',
   },
