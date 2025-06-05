@@ -3,6 +3,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import CourseRecommend from './screens/courseRecommend';
 import CourseDetail from './screens/courseDetail';
+import bikeMarker from './screens/bikeMarker';
 import CourseStart from './screens/courseStart';
 
 const Stack = createNativeStackNavigator();
@@ -26,6 +27,12 @@ export default function App() {
             headerTintColor: '#000',       // 뒤로가기 버튼 색상
           }}
         >
+          
+          <Stack.Screen
+            name="bikeMarker"
+            component={bikeMarker}
+            options={{ title: '자전거 대여소' }} // 헤더 타이틀 설정
+          />
           <Stack.Screen
             name="courseRecommend"
             component={CourseRecommend}
