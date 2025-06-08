@@ -10,7 +10,9 @@ import { testCourse } from '../api/testCourse';
 import useStopwatch from '../screens/components/stopWatch.jsx';
 import Geolocation from '@react-native-community/geolocation';
 import CourseStartBottomCard from '../screens/components/courseStartBottomCard';
-import { getSavedRoute } from '../api/routeStore';
+import { getSavedRoute1,getSavedRoute2 } from '../api/routeStore';
+import { useRoute } from '@react-navigation/native';
+
 import EndRideDialog from '../screens/components/endRideDialog.jsx';
 
 
@@ -25,6 +27,9 @@ const MountainMapScreen = () => {
   const trackingRef = useRef(true);
   const [isReady, setIsReady] = useState(false); // ✅ 변경
   const [modalVisible, setModalVisible] = useState(false);
+    const route = useRoute();
+  const { type } = route.params;
+
 
 
 
@@ -122,22 +127,34 @@ const MountainMapScreen = () => {
     startInterval();
   
     const loadRoute = async () => {
-      const data = getSavedRoute();
-      
-        if (data) {
+      const getRouteFn = type === '1' ? getSavedRoute1 : getSavedRoute2;
+      const data = getRouteFn(); // 함수 호출
+    
+      if (data) {
+        try {
           const parsed = typeof data.geoJson === 'string'
             ? JSON.parse(data.geoJson)
-              : data.geoJson;
-        
-            const coords = parsed.coordinates.map(([lng, lat]) => ({
-                latitude: lat,
-                longitude: lng,
-                            }));
-          
-              setGeoCoords(coords);
-            }
-
+            : data.geoJson;
+    
+          const coordinates =
+            parsed?.coordinates || parsed?.features?.[0]?.geometry?.coordinates;
+    
+          if (Array.isArray(coordinates)) {
+            const coords = coordinates.map(([lng, lat]) => ({
+              latitude: lat,
+              longitude: lng,
+            }));
+    
+            setGeoCoords(coords);
+          }
+        } catch (e) {
+          console.warn('❌ 경로 데이터 파싱 실패:', e);
+        }
+      } else {
+        console.warn('❌ 저장된 경로가 없습니다');
+      }
     };
+    
   
     loadRoute();
 

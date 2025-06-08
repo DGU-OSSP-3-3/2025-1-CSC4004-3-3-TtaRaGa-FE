@@ -3,8 +3,9 @@ import { View, Text, StyleSheet, Button, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NaverMapView, NaverMapPathOverlay } from '@mj-studio/react-native-naver-map';
 import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
+import { useRoute } from '@react-navigation/native';
 import { fetchGeoJson,fetchBestRoute } from '../api/geojson';
-import { getSavedRoute } from '../api/routeStore';
+import { getSavedRoute1,getSavedRoute2 } from '../api/routeStore';
 
 
 
@@ -53,6 +54,11 @@ const CourseDetail = ({ navigation }) => {
   const bottomSheetRef = useRef(null);
   const snapPoints = useMemo(() => ['15%', '50%'], []); // 필요한 만큼
   const [geoCoords, setGeoCoords] = useState([]);
+  const route = useRoute();
+  const { type } = route.params;
+  const courseData = type === '1' ? getSavedRoute1() : getSavedRoute2();
+
+
 
   const handleClick = async () => {
     try {
@@ -91,20 +97,49 @@ const CourseDetail = ({ navigation }) => {
   // .catch(err => {
   //   console.error('GeoJSON fetch error:', err);
   // });
-      const data = getSavedRoute();
+        if (type === '1') {
+          // const data = getSavedRoute1();
+        
+          // if (data && data.geoJson) {
+          //   const parsed = typeof data.geoJson === 'string'
+          //     ? JSON.parse(data.geoJson)
+          //     : data.geoJson;
+          console.log('courseData',courseData);
+          const parsed = typeof courseData.geoJson === 'string'
+            ? JSON.parse(courseData.geoJson)
+            : courseData.geoJson;
 
-      if (data) {
-        const parsed = typeof data.geoJson === 'string'
-          ? JSON.parse(data.geoJson)
-          : data.geoJson;
-    
-        const coords = parsed.coordinates.map(([lng, lat]) => ({
-          latitude: lat,
-          longitude: lng,
-        }));
-    
-        setGeoCoords(coords);
-      }
+          const coordinates = parsed?.features?.[0]?.geometry?.coordinates;
+
+          if (Array.isArray(coordinates)) {
+            const coords = coordinates.map(([lng, lat]) => ({
+              latitude: lat,
+              longitude: lng,
+            }));
+
+            setGeoCoords(coords);
+          }
+        }
+        if (type === '2'){
+          //const data = getSavedRoute2();
+
+          if (courseData) {
+            console.log('courseData',courseData);
+
+            const parsed = typeof courseData.geoJson === 'string'
+              ? JSON.parse(courseData.geoJson)
+              : courseData.geoJson;
+              console.log('parsed',parsed);
+
+            const coords = parsed.coordinates.map(([lng, lat]) => ({
+              latitude: lat,
+              longitude: lng,
+            }));
+        
+            setGeoCoords(coords);
+          }
+        }
+      
   }, []);
   const INITIAL_CAMERA = getCameraWithZoomAndOffset(geoCoords);
 
@@ -151,23 +186,36 @@ const CourseDetail = ({ navigation }) => {
             <View style={styles.infoGroup}>
               <View style={styles.infoRow}>
                 <Text style={styles.infoLabel}>예상 소요시간</Text>
-                <Text style={styles.infoValue}>1시간 43분</Text>
+                <Text style={styles.infoValue}>
+                {Math.round(courseData?.duration)}분
+
+                </Text>
               </View>
 
               <View style={styles.infoRow}>
                 <Text style={styles.infoLabel}>평균 오르막 경사도</Text>
-                <Text style={styles.infoValue}>2.3%</Text>
+                <Text style={styles.infoValue}>
+                {(courseData?.averageSlope < 1
+                  ? (courseData.averageSlope * 100).toFixed(1)
+                  : courseData.averageSlope.toFixed(1))}%
+
+                </Text>
               </View>
 
               <View style={styles.infoRow}>
                 <Text style={styles.infoLabel}>최대 오르막 경사도</Text>
-                <Text style={styles.infoValue}>2.3%</Text>
+                <Text style={styles.infoValue}>
+                {(courseData?.maxSlope < 1
+                  ? (courseData.maxSlope * 100).toFixed(1)
+                  : courseData.maxSlope.toFixed(1))}%
+
+                </Text>
               </View>
             </View>
 
           <TouchableOpacity style={styles.startButton}
           onPress={() =>
-            navigation.navigate('courseStart')
+            navigation.navigate('courseStart', {type : type})
           }>
             <Text style={styles.startButtonText}>시작</Text>
           </TouchableOpacity> 

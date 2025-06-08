@@ -119,7 +119,7 @@ async function postRegion(region) {
       parking_bike_tot_cnt: item[1],
       station_latitude: item[2],
       station_longitude: item[3],
-      station_name: item[4],   
+      station_name: item[4],
     }));
     return transformedData;
   } catch (e) {
@@ -141,42 +141,65 @@ function BikeDB({ navigation }) {
   const mapRef = useRef(null);
   const isInitialized = useRef(false);
 
-  // 위치 권한 요청 및 현재 위치 가져오기, 직접 apk 설치후 확인 사안
   useEffect(() => {
-    async function initializeLocation() {
+    async function initializeLocationAndData() {
       try {
-        const permission = PERMISSIONS.ANDROID.ACCESS_FINE_LOCATION; // 권한 가져오기
-        const result = await request(permission); // 권환 가져올 때까지 await
+        const permission = PERMISSIONS.ANDROID.ACCESS_FINE_LOCATION;
+        const result = await request(permission);
         if (result === 'granted') {
           Geolocation.getCurrentPosition(
-            (position) => {
+            async (position) => {
               const { latitude, longitude } = position.coords;
-              console.log('Current position:', { latitude, longitude });
+  
+              const region = {
+                latitude,
+                longitude,
+                latitudeDelta: 0.05,
+                longitudeDelta: 0.05,
+              };
+  
               setCamera({ latitude, longitude, zoom: 13 });
+              setLastRegion(region);
+  
+              try {
+                const result = await postRegion(region);
+                if (Array.isArray(result)) {
+                  setStations(result);
+                } else {
+                  setStations(FALLBACK_DATA);
+                }
+              } catch (apiErr) {
+                console.error('초기 API 호출 실패:', apiErr);
+                setStations(FALLBACK_DATA);
+              }
+  
               setLoading(false);
             },
             (err) => {
-              console.error('Geolocation error:', err);
-              setCamera(DEFAULT_CAMERA); 
+              console.error('위치 정보 오류:', err);
+              setCamera(DEFAULT_CAMERA);
+              setStations(FALLBACK_DATA);
               setLoading(false);
             },
             { enableHighAccuracy: true, timeout: 10000, maximumAge: 1000 }
           );
         } else {
-          console.warn('Location permission denied');
+          console.warn('위치 권한 거부됨');
           setCamera(DEFAULT_CAMERA);
+          setStations(FALLBACK_DATA);
           setLoading(false);
         }
       } catch (err) {
-        console.error('Permission error:', err);
+        console.error('권한 요청 에러:', err);
         setCamera(DEFAULT_CAMERA);
+        setStations(FALLBACK_DATA);
         setLoading(false);
       }
     }
-
-    initializeLocation();
-    handleRefresh(); 
+  
+    initializeLocationAndData();
   }, []);
+  
 
   // 카메라 사이즈 가져올 수 있는 함수
   const handleCameraChanged = (params) => {
@@ -267,6 +290,7 @@ function BikeDB({ navigation }) {
         //  }}
         onTap={() => {
           setSelectedStation(station);
+          console.log('Selected station:', station);
           // 카메라 이동 
           if (mapRef.current) {
             mapRef.current.animateCameraTo({

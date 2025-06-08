@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { useRoute } from '@react-navigation/native';
-import { postFilterTime } from '../api/postFilterTime';
-import { setSavedRoute } from '../api/routeStore';
+import { postFilterTime1,postFilterTime2 } from '../api/postFilterTime';
+import { setSavedRoute1,setSavedRoute2 } from '../api/routeStore';
 
 const courses = [
   {
@@ -32,9 +32,9 @@ const CourseRecommend = ({ navigation }) => {
 
   const filters = ['30분', '1시간', '2시간'];
   const timeMap = {
-    '30분': 30,
-    '1시간': 60,
-    '2시간': 120,
+    '30분': 20,
+    '1시간': 40,
+    '2시간': 60,
   };
 
   const handleFilterSelect = async (idx) => {
@@ -48,14 +48,18 @@ const CourseRecommend = ({ navigation }) => {
     }
 
     try {
-      const data = await postFilterTime(lat, lng, targetTime);
-      console.log('경로 데이터:', data);
-      setSavedRoute(data);
+      const data1 = await postFilterTime1(lat, lng, targetTime);
+      const data2 = await postFilterTime2(lat, lng, targetTime);
+
+      console.log('경로 데이터:', data1);
+      setSavedRoute1(data1);
+      setSavedRoute2(data2);
+
     } catch (err) {
       console.error('전송 실패:', err);
     }
   };
-
+  
   return (
     <View style={styles.container}>
       <View style={styles.filterRow}>
@@ -76,7 +80,7 @@ const CourseRecommend = ({ navigation }) => {
         <Text style={styles.sectionTitle}>✨ 최적 라이딩 코스</Text>
         <TouchableOpacity
           style={styles.card}
-          onPress={() => navigation.navigate('courseDetail')}
+          onPress={() => navigation.navigate('courseDetail',{type:'1'})}
         >
           <Image source={courses[0].image} style={styles.image} />
           <View style={styles.textBox}>
@@ -86,13 +90,15 @@ const CourseRecommend = ({ navigation }) => {
         </TouchableOpacity>
 
         <Text style={styles.sectionTitle}>🏃 서울 동행 코스</Text>
-        <View style={styles.card}>
+        <TouchableOpacity style={styles.card}
+          onPress={() => navigation.navigate('courseDetail',{type:'2'})}
+          >
           <Image source={courses[1].image} style={styles.image} />
           <View style={styles.textBox}>
             <Text style={styles.cardTitle}>{courses[1].title}</Text>
             <Text style={styles.cardDesc}>{courses[1].desc}</Text>
           </View>
-        </View>
+        </TouchableOpacity>
       </View>
 
       <TouchableOpacity
