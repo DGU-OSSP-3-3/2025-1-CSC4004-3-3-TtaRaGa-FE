@@ -1,36 +1,32 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
-import { useState } from 'react';
+import { useRoute } from '@react-navigation/native';
 import { postFilterTime } from '../api/postFilterTime';
 import { setSavedRoute } from '../api/routeStore';
-
-
-// TODO : 시간 선택 버튼 마구 못누르게 응답 올때까지 대기
-// TODO : 반환 점 기반 주변 명소 데이터 가져오기
-
 
 const courses = [
   {
     id: 1,
     title: '하천따라 1시간 힐링 라이딩 코스',
     desc: '하천따라 라이딩하는 코스입니다. 어쩌고 힐링이 필요 한 날에 어쩌고',
-    image: { uri: 'https://www.seouldanurim.net/comm/getImage?srvcId=MEDIA&parentSn=43723&fileTy=MEDIA&fileNo=1&thumbTy=S' },
+    image: {
+      uri: 'https://www.seouldanurim.net/comm/getImage?srvcId=MEDIA&parentSn=43723&fileTy=MEDIA&fileNo=1&thumbTy=S',
+    },
   },
   {
     id: 2,
-    title: '하천따라 1시간 힐링 라이딩 코스',
-    desc: '하천따라 라이딩하는 코스입니다. 어쩌고 힐링이 필요 한 날에 어쩌고',
-    image: { uri: 'https://www.seouldanurim.net/comm/getImage?srvcId=MEDIA&parentSn=43725&fileTy=MEDIA&fileNo=1&thumbTy=S' },
+    title: '서울 속 동행 산책 코스',
+    desc: '서울 시내를 천천히 즐길 수 있는 시민 친화적 루트입니다.',
+    image: {
+      uri: 'https://www.seouldanurim.net/comm/getImage?srvcId=MEDIA&parentSn=43725&fileTy=MEDIA&fileNo=1&thumbTy=S',
+    },
   },
-  // {
-  //   id: 3,
-  //   title: '하천따라 1시간 힐링 라이딩 코스',
-  //   desc: '하천따라 라이딩하는 코스입니다. 어쩌고 힐링이 필요 한 날에 어쩌고',
-  //   image: { uri: 'https://www.seouldanurim.net/comm/getImage?srvcId=MEDIA&parentSn=43726&fileTy=MEDIA&fileNo=1&thumbTy=S' },
-  // },
 ];
 
 const CourseRecommend = ({ navigation }) => {
+  const route = useRoute();
+  const { lat, lng, stationName } = route.params || {};
+
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [routeData, setRouteData] = useState(null);
 
@@ -44,15 +40,17 @@ const CourseRecommend = ({ navigation }) => {
   const handleFilterSelect = async (idx) => {
     setSelectedIndex(idx);
     const label = filters[idx];
-    const targetTime = timeMap[label]; // 숫자값으로 변환
+    const targetTime = timeMap[label];
 
-    const lat = 37.51000977;
-    const lon = 126.88204956;
+    if (!lat || !lng) {
+      console.warn('위치 정보 없음');
+      return;
+    }
+
     try {
-      const data = await postFilterTime(lat, lon, targetTime);
+      const data = await postFilterTime(lat, lng, targetTime);
       console.log('경로 데이터:', data);
-      setSavedRoute(data); // 여기 저장
-
+      setSavedRoute(data);
     } catch (err) {
       console.error('전송 실패:', err);
     }
@@ -60,120 +58,86 @@ const CourseRecommend = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      {/* 상단바
-      <View style={styles.header}>
-        <Text style={styles.back}>{'←'}</Text>
-        <Text style={styles.title}>추천 코스</Text>
-      </View> */}
-
-      {/* 필터 */}
       <View style={styles.filterRow}>
         {filters.map((label, idx) => (
           <TouchableOpacity
             key={idx}
-            style={[
-              styles.filterBtn,
-              selectedIndex === idx && styles.filterBtnSelected,
-            ]}
+            style={[styles.filterBtn, selectedIndex === idx && styles.filterBtnSelected]}
             onPress={() => handleFilterSelect(idx)}
           >
-            <Text
-              style={[
-                styles.filterText,
-                selectedIndex === idx && styles.filterTextSelected,
-              ]}
-            >
+            <Text style={[styles.filterText, selectedIndex === idx && styles.filterTextSelected]}>
               {label}
             </Text>
           </TouchableOpacity>
         ))}
       </View>
 
-
       <View style={styles.scroll}>
-        {/* 최적 라이딩 코스 */}
         <Text style={styles.sectionTitle}>✨ 최적 라이딩 코스</Text>
-        <TouchableOpacity style={styles.card} 
-          onPress={() =>
-            navigation.navigate('courseDetail')
-          }
+        <TouchableOpacity
+          style={styles.card}
+          onPress={() => navigation.navigate('courseDetail')}
         >
-          <Image
-            source={{
-              uri: 'https://www.seouldanurim.net/comm/getImage?srvcId=MEDIA&parentSn=43723&fileTy=MEDIA&fileNo=1&thumbTy=S',
-            }}
-            style={styles.image}
-          />
+          <Image source={courses[0].image} style={styles.image} />
           <View style={styles.textBox}>
-            <Text style={styles.cardTitle}>1시간 힐링 라이딩 코스</Text>
-            <Text style={styles.cardDesc}>하천 따라 여유롭게 달릴 수 있는 힐링용 루트입니다.</Text>
+            <Text style={styles.cardTitle}>{courses[0].title}</Text>
+            <Text style={styles.cardDesc}>{courses[0].desc}</Text>
           </View>
         </TouchableOpacity>
 
-        {/* 서울 동행 코스 */}
         <Text style={styles.sectionTitle}>🏃 서울 동행 코스</Text>
         <View style={styles.card}>
-          <Image
-            source={{
-              uri: 'https://www.seouldanurim.net/comm/getImage?srvcId=MEDIA&parentSn=43725&fileTy=MEDIA&fileNo=1&thumbTy=S',
-            }}
-            style={styles.image}
-          />
+          <Image source={courses[1].image} style={styles.image} />
           <View style={styles.textBox}>
-            <Text style={styles.cardTitle}>서울 속 동행 산책 코스</Text>
-            <Text style={styles.cardDesc}>서울 시내를 천천히 즐길 수 있는 시민 친화적 루트입니다.</Text>
+            <Text style={styles.cardTitle}>{courses[1].title}</Text>
+            <Text style={styles.cardDesc}>{courses[1].desc}</Text>
           </View>
         </View>
       </View>
-      {/* 하단 고정 새로고침 버튼 */}
+
       <TouchableOpacity
         style={styles.refreshButton}
-        onPress={() => {
-          console.log('새로고침 클릭');
-        }}
+        onPress={() => console.log('새로고침 클릭')}
       >
         <Text style={styles.refreshText}>새로고침</Text>
       </TouchableOpacity>
-      
     </View>
   );
 };
 
 export default CourseRecommend;
 
-
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff'},
-  header: { flexDirection: 'row', alignItems: 'center', height: 50, justifyContent: 'center'},
-  back: { position:'absolute',left:8, fontSize: 24, marginRight: 16 },
-  title: { fontSize: 20, fontWeight: 'bold' },
-
-  filterRow: { flexDirection: 'row', marginBottom: 16, marginTop: 8, alignItems: 'center', justifyContent: 'center',gap:20},
+  container: { flex: 1, backgroundColor: '#fff' },
+  filterRow: {
+    flexDirection: 'row',
+    marginBottom: 16,
+    marginTop: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 20,
+  },
   filterBtn: {
-    width:93,
+    width: 93,
     height: 46,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 20,
     backgroundColor: '#F7F5F5',
   },
-  filterText: { fontSize: 18, fontWeight: 'medium' },
-
+  filterText: { fontSize: 18 },
   filterBtnSelected: {
     borderColor: '#68AE6E',
     backgroundColor: '#F9FFFC',
     borderWidth: 2,
   },
-  
   filterTextSelected: {
     color: '#328E6E',
   },
-
-  scroll: { 
+  scroll: {
     flex: 1,
     backgroundColor: '#F7F5F5',
     paddingHorizontal: 16,
-
   },
   sectionTitle: {
     fontSize: 18,
@@ -183,7 +147,6 @@ const styles = StyleSheet.create({
     marginLeft: 4,
     color: '#222',
   },
-  
   card: {
     backgroundColor: '#fff',
     borderRadius: 12,
@@ -195,24 +158,20 @@ const styles = StyleSheet.create({
   textBox: { padding: 20 },
   cardTitle: { fontWeight: 'bold', fontSize: 16, marginBottom: 4 },
   cardDesc: { fontSize: 14, color: '#444' },
-
   refreshButton: {
     position: 'absolute',
-    bottom: 50, // 화면 하단에서 간격
+    bottom: 50,
     alignSelf: 'center',
     backgroundColor: '#4CAF50',
     paddingVertical: 12,
     paddingHorizontal: 28,
     borderRadius: 30,
-    zIndex: 10, // 다른 요소 위에 보이게
-    elevation: 5, // 안드로이드 그림자
+    zIndex: 10,
+    elevation: 5,
   },
-  
   refreshText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
   },
-  
-  
 });
