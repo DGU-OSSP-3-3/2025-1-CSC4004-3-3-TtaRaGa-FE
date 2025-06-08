@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { View, Text, StyleSheet, Alert, TouchableOpacity, Image, Modal, TouchableWithoutFeedback } from 'react-native';
+import { View, Text, StyleSheet, Alert, TouchableOpacity, Image, Modal, TouchableWithoutFeedback, navigation } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NaverMapView, NaverMapMarkerOverlay } from '@mj-studio/react-native-naver-map';
 import Geolocation from '@react-native-community/geolocation';
@@ -129,7 +129,7 @@ async function postRegion(region) {
   }
 }
 
-function BikeDB() {
+function BikeDB({ navigation }) {
   const [stations, setStations] = useState([]);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -246,16 +246,17 @@ function BikeDB() {
     const isSelected = selectedStation?.station_id === station_id;
     return (
       <NaverMapMarkerOverlay
-        key={station_id}
-        latitude={station_latitude}
-        longitude={station_longitude}
+        key = {station_id}
+        latitude = {station_latitude}
+        longitude = {station_longitude}
         caption={{
           text: isSelected ? `${parking_bike_tot_cnt}` : '',
           textSize: 24,
-          color: '#006400',
+          color: '#328E6E',
           offset: isSelected ? -47 : -35
         }}
-        alpha={0}
+        zIndex={isSelected ? 1000 : 0} // 선택된 마커를 위로 올림
+        alpha={1}
         width={isSelected ? 60 : 38}
         height={isSelected ? 60 : 38}
         anchor={{ x: 0.5, y: 0.6 }}
@@ -264,7 +265,6 @@ function BikeDB() {
         //   symbol: 'green',
         //   httpUri: 'https://pplx-res.cloudinary.com/image/upload/v1748720466/gpt4o_images/eprm9nb6temrrznqpusr.png', // 자전거 아이콘
         //  }}
-        tintColor="#009900" // marker색
         onTap={() => {
           setSelectedStation(station);
           // 카메라 이동 
@@ -334,7 +334,7 @@ function BikeDB() {
           onRequestClose={() => setSelectedStation(null)}
         >
           <TouchableWithoutFeedback onPress={() => setSelectedStation(null)}>
-            <View style={styles.modalBackground}>
+            <View style={styles.modalBackground} >
               <TouchableWithoutFeedback>
                 <View style={styles.dialog}>
                   <View style={styles.rowBetween}>
@@ -343,10 +343,20 @@ function BikeDB() {
                   </View>
                   <TouchableOpacity
                     style={styles.button}
-                    onPress={() => setSelectedStation(null)}
+                    onPress={() => {
+                      if (selectedStation) {
+                        navigation.navigate('courseRecommend', {
+                          lat: selectedStation.station_latitude,
+                          lng: selectedStation.station_longitude,
+                          stationName: selectedStation.station_name,
+                        });
+                        setSelectedStation(null); // 모달 닫기
+                      }
+                    }}
                   >
                     <Text style={styles.buttonText}>출발지 설정</Text>
                   </TouchableOpacity>
+
                 </View>
               </TouchableWithoutFeedback>
             </View>
@@ -407,14 +417,14 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     width: '90%',
     minHeight: 120,
-    borderColor: '#90EE90', 
-    borderWidth: 2,      
+    borderColor: '#A4D3A2',
+    borderWidth: 2,
   },
   rowBetween: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    paddingHorizontal: 16,
   },
   stationName: {
     fontSize: 22,
@@ -431,7 +441,7 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   button: {
-    backgroundColor: '#009900',
+    backgroundColor: '#4CAF50',
     borderRadius: 8,
     paddingHorizontal: 32,
     paddingVertical: 12,
